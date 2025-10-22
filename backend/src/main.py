@@ -9,11 +9,12 @@ from dotenv import load_dotenv
 from google.cloud import bigquery
 
 from langchain_query import query_github_analytics
+from credentials_helper import get_google_credentials_path
 
 load_dotenv()
 
 # ==================== BigQuery Client ====================
-SERVICE_ACCOUNT_PATH = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+SERVICE_ACCOUNT_PATH = get_google_credentials_path()
 bq_client = bigquery.Client.from_service_account_json(SERVICE_ACCOUNT_PATH)
 
 PROJECT_ID = os.getenv("GCP_PROJECT_ID", "hackathon-github-ai")
