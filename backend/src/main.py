@@ -8,8 +8,8 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from google.cloud import bigquery
 
-from langchain_query import query_github_analytics
-from credentials_helper import get_google_credentials_path
+from .langchain_query import query_github_analytics
+from .credentials_helper import get_google_credentials_path
 
 load_dotenv()
 
