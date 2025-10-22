@@ -20,9 +20,18 @@ from pydantic import Field
 
 load_dotenv()
 
-# ---------------- ENV SETUP ----------------
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+# Import credentials helper
+try:
+    from .credentials_helper import get_google_credentials_path
+    # Set credentials path
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = get_google_credentials_path()
+except Exception as e:
+    print(f"Warning: Could not load credentials helper: {e}")
+    # Fallback to environment variable
+    if os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
+# ---------------- ENV SETUP ----------------
 PROJECT_ID = os.getenv("GCP_PROJECT_ID", "hackathon-github-ai")
 LOCATION = os.getenv("VERTEX_AI_LOCATION", "us-central1")
 INDEX_NAME = os.getenv("ELASTIC_INDEX", "github_issues")
@@ -38,7 +47,12 @@ class GeminiEmbeddings(Embeddings):
         self.project = project
         self.location = location
         self.model_name = model_name
-        self.model = TextEmbeddingModel.from_pretrained(self.model_name)
+        # Initialize with explicit project and location
+        import google.auth
+        credentials, _ = google.auth.default()
+        self.model = TextEmbeddingModel.from_pretrained(
+            self.model_name,
+        )
         print(f"✅ Initialized {model_name} (3072 dimensions)")
     
     def embed_documents(self, texts: list) -> list:
@@ -51,8 +65,15 @@ class GeminiEmbeddings(Embeddings):
         embeddings = self.model.get_embeddings([text])
         return embeddings[0].values
 
-# Initialize custom embeddings
-embeddings = GeminiEmbeddings(project=PROJECT_ID, location=LOCATION)
+# Initialize custom embeddings (will be created when needed)
+embeddings = None
+
+def get_embeddings():
+    """Lazy initialization of embeddings"""
+    global embeddings
+    if embeddings is None:
+        embeddings = GeminiEmbeddings(project=PROJECT_ID, location=LOCATION)
+    return embeddings
 
 # ---------------- Elasticsearch Client ----------------
 es_client = Elasticsearch(
@@ -138,22 +159,34 @@ Repo: {source.get('repo_name', 'N/A')}"""
         """Async version - just calls sync version"""
         return self._get_relevant_documents(query)
 
-# Initialize custom retriever with metadata extraction
-retriever = ElasticsearchMetadataRetriever(
-    es_client=es_client,
-    index_name=INDEX_NAME,
-    embeddings=embeddings,
-    k=10
-)
+# Global variables for lazy initialization
+retriever = None
+llm = None
 
-# ---------------- Vertex AI Model ----------------
-llm = ChatVertexAI(
-    model_name="gemini-2.5-flash",
-    project=PROJECT_ID,
-    location=LOCATION,
-    temperature=0.2,
-    max_output_tokens=1024
-)
+def get_retriever():
+    """Lazy initialization of retriever"""
+    global retriever
+    if retriever is None:
+        retriever = ElasticsearchMetadataRetriever(
+            es_client=es_client,
+            index_name=INDEX_NAME,
+            embeddings=get_embeddings(),
+            k=10
+        )
+    return retriever
+
+def get_llm():
+    """Lazy initialization of LLM"""
+    global llm
+    if llm is None:
+        llm = ChatVertexAI(
+            model_name="gemini-2.5-flash",
+            project=PROJECT_ID,
+            location=LOCATION,
+            temperature=0.2,
+            max_output_tokens=1024
+        )
+    return llm
 
 # ---------------- Prompt Template (FIXED) ----------------
 # Use proper variable syntax without f-string confusion
@@ -191,9 +224,9 @@ analytics_prompt = PromptTemplate(
 # ---------------- RAG Chain ----------------
 def create_rag_chain():
     return RetrievalQA.from_chain_type(
-        llm=llm,
+        llm=get_llm(),
         chain_type="stuff",
-        retriever=retriever,
+        retriever=get_retriever(),
         chain_type_kwargs={"prompt": analytics_prompt},
         return_source_documents=True,
         verbose=False  # Set to True to debug
@@ -211,7 +244,7 @@ def query_github_analytics(user_question: str) -> dict:
         
         # Debug: Verify query embedding is generated correctly
         try:
-            query_embedding = embeddings.embed_query(user_question)
+            query_embedding = get_embeddings().embed_query(user_question)
             print(f"✅ Query embedding generated: {len(query_embedding)} dimensions")
             print(f"   First 5 values: {query_embedding[:5]}")
             
