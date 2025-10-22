@@ -3,8 +3,7 @@ import { Send, BarChart3, MessageSquare, TrendingUp, AlertCircle, Clock } from '
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import ReactMarkdown from 'react-markdown';
 import logo from './assets/logo.jpg.png';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+import { API_BASE_URL } from './config';
 
 const DevInsight = () => {
     const [activeTab, setActiveTab] = useState('chat');
