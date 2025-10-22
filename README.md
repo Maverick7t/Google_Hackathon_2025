@@ -8,6 +8,14 @@
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![React 19](https://img.shields.io/badge/react-19-blue.svg)](https://react.dev/)
 
+## 🌐 Live Demo
+
+**🚀 Try it now:** [https://devinsight-a5gtwfjn3-moinaktar-shaikhs-projects.vercel.app](https://devinsight-a5gtwfjn3-moinaktar-shaikhs-projects.vercel.app)
+
+**Backend API:** [https://google-hackathon-2025.onrender.com](https://google-hackathon-2025.onrender.com)
+
+---
+
 ## 🚀 What is DevInsight?
 
 DevInsight analyzes public GitHub repositories and answers natural language questions like:
